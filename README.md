@@ -1,49 +1,93 @@
-# Reddit Nothing Phone Complaint Scraper
+# Reddit Complaint Analyzer
 
-This program scrapes Reddit for complaints about the Nothing Phone 3a and 3a Pro, analyzes the complaints using OpenAI's language model, and stores them in a CSV file.
+A command-line tool that analyzes Reddit comments about a product and extracts the most common complaints, categorizing them into different aspects like camera, performance, battery, etc.
 
 ## Features
 
-- Scrapes Reddit posts and comments about Nothing Phone 3a and 3a Pro
-- Uses OpenAI's language model to identify and group similar complaints
-- Automatically detects semantic similarity between complaints
-- Generates a CSV file with complaint summaries and their frequencies
+- Searches Reddit for product reviews and discussions
+- Analyzes comments to identify common complaints
+- Categorizes complaints into different aspects (camera, performance, battery, etc.)
+- Generates concise summaries of each complaint
+- Exports results to CSV and displays them in the terminal
 
-## Setup
+## Installation
 
-1. Install the required dependencies:
+1. Clone this repository:
+```bash
+git clone https://github.com/yourusername/redditScraper.git
+cd redditScraper
+```
+
+2. Install required packages:
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Create a `.env` file in the root directory with your API credentials:
+3. Create a `.env` file in the project root with your Reddit API credentials:
 ```
 REDDIT_CLIENT_ID=your_client_id
 REDDIT_CLIENT_SECRET=your_client_secret
 REDDIT_USER_AGENT=your_user_agent
-OPENAI_API_KEY=your_openai_api_key
 ```
 
-3. Run the program:
+To get Reddit API credentials:
+1. Go to https://www.reddit.com/prefs/apps
+2. Click "create another app..."
+3. Select "script"
+4. Fill in the required information
+5. Copy the client ID and client secret to your .env file
+
+## Usage
+
+Run the script from the command line with the following syntax:
+
 ```bash
-python main.py
+python export_top_complaints.py "Product Name" [--posts NUMBER] [--output FILENAME]
+```
+
+### Arguments:
+
+- `Product Name`: The name of the product to analyze (required)
+- `--posts`: Number of Reddit posts to analyze (optional, default: 10)
+- `--output`: Output CSV file name (optional, default: top_10_complaints.csv)
+
+### Examples:
+
+Analyze the latest 10 posts about iPhone 15:
+```bash
+python export_top_complaints.py "iPhone 15"
+```
+
+Analyze 20 posts about Samsung S24 and save to a custom file:
+```bash
+python export_top_complaints.py "Samsung S24" --posts 20 --output s24_complaints.csv
 ```
 
 ## Output
 
-The program will create a CSV file named `nothing_phone_complaints.csv` with two columns:
-- Complaint Summary: A summary of the complaint
-- Count: Number of times this complaint was mentioned
+The tool will:
+1. Display progress as it fetches and analyzes Reddit posts
+2. Show the top 10 most frequent complaints in the terminal
+3. Export the results to a CSV file
 
-## How it Works
+The complaints are categorized into:
+- Camera
+- Performance
+- Battery
+- Storage
+- Display
+- Design
+- Price
+- Software
+- Hardware
 
-1. The program scrapes Reddit posts and comments about Nothing Phone 3a and 3a Pro
-2. Each piece of text is processed using OpenAI's language model to generate embeddings
-3. New complaints are compared with existing ones using cosine similarity
-4. Similar complaints are grouped together and their counts are updated
-5. Results are saved to a CSV file, sorted by frequency
+## Requirements
 
-## Note
+- Python 3.6+
+- praw
+- python-dotenv
+- csv
 
-Make sure to follow Reddit's API guidelines and rate limits when using this scraper.
-The program uses OpenAI's API for language model processing, which may incur costs based on your usage. 
+## License
+
+MIT License 
