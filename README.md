@@ -23,19 +23,28 @@ cd redditScraper
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file in the project root with your Reddit API credentials:
+3. Create a `.env` file in the project root with your API credentials:
 ```
 REDDIT_CLIENT_ID=your_client_id
 REDDIT_CLIENT_SECRET=your_client_secret
 REDDIT_USER_AGENT=your_user_agent
+OPENAI_API_KEY=your_openai_api_key
 ```
 
-To get Reddit API credentials:
+### Getting API Keys:
+
+#### Reddit API:
 1. Go to https://www.reddit.com/prefs/apps
 2. Click "create another app..."
 3. Select "script"
 4. Fill in the required information
 5. Copy the client ID and client secret to your .env file
+
+#### OpenAI API (Optional - for enhanced analysis):
+1. Go to https://platform.openai.com/api-keys
+2. Create a new API key
+3. Copy the key to your .env file as OPENAI_API_KEY
+4. Note: If you don't provide an OpenAI API key, the tool will use a simpler analysis method
 
 ## Usage
 
@@ -81,12 +90,20 @@ The complaints are categorized into:
 - Software
 - Hardware
 
+## Analysis Modes
+
+The tool has two analysis modes:
+
+1. **Simple Mode** (Default): Uses keyword-based analysis to identify and categorize complaints. No API key required.
+
+2. **Enhanced Mode** (With OpenAI API): Uses OpenAI's language models for more accurate complaint analysis and summarization. Requires an OpenAI API key in the .env file.
+
 ## Requirements
 
 - Python 3.6+
 - praw
 - python-dotenv
-- csv
+- openai (optional)
 
 ## License
 
