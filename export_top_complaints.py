@@ -1,94 +1,85 @@
 import os
 import praw
-import csv
+import pandas as pd
+from typing import List, Dict, Tuple
 from dotenv import load_dotenv
 from test_language_model_processor import SimpleLanguageModelProcessor
-import argparse
 
-def fetch_reddit_comments(product_name, num_posts=10):
-    """Fetch comments from Reddit posts about a specific product."""
+def setup_reddit_client() -> praw.Reddit:
+    """Set up and return a Reddit client using environment variables."""
     load_dotenv()
-    
-    # Initialize Reddit client
-    reddit = praw.Reddit(
+    return praw.Reddit(
         client_id=os.getenv('REDDIT_CLIENT_ID'),
         client_secret=os.getenv('REDDIT_CLIENT_SECRET'),
         user_agent=os.getenv('REDDIT_USER_AGENT')
     )
-    
-    # Search for posts about the product
-    search_query = f"{product_name} review OR {product_name} thoughts OR {product_name} experience"
-    subreddits = ['android', 'smartphones', 'gadgets', 'technology']
-    
-    all_comments = []
-    posts_processed = 0
-    
-    print(f"Fetching comments about {product_name}...")
-    
-    for subreddit_name in subreddits:
-        if posts_processed >= num_posts:
-            break
-            
-        subreddit = reddit.subreddit(subreddit_name)
-        for post in subreddit.search(search_query, sort='relevance', time_filter='month', limit=num_posts):
-            if posts_processed >= num_posts:
-                break
-                
-            print(f"\nAnalyzing post: {post.title}")
-            print(f"URL: {post.url}")
-            
-            # Get comments from the post
-            post.comments.replace_more(limit=0)  # Remove MoreComments objects
-            for comment in post.comments.list():
-                if hasattr(comment, 'body') and comment.body:
-                    all_comments.append(comment.body)
-                    
-            posts_processed += 1
-    
-    print(f"\nFound {len(all_comments)} comments to analyze")
-    return all_comments
 
-def export_top_complaints(complaints, filename="top_10_complaints.csv"):
-    """Export the top 10 most frequent complaints to a CSV file."""
-    # Sort complaints by count in descending order
-    sorted_complaints = sorted(complaints.items(), key=lambda x: x[1], reverse=True)
+def get_reddit_comments(reddit: praw.Reddit, product: str, limit: int = 100) -> List[str]:
+    """Fetch comments from Reddit about a specific product."""
+    comments = []
+    subreddits = ['Smartphones', 'Android', 'NothingTech', 'TechReviews']
     
-    # Take the top 10
-    top_10 = sorted_complaints[:10]
-    
-    # Write to CSV
-    with open(filename, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(['Summary', 'Count'])
-        
-        for complaint, count in top_10:
-            writer.writerow([complaint, count])
-    
-    print(f"\nTop 10 complaints exported to {filename}")
-    
-    # Print the top 10 complaints to console
+    for subreddit in subreddits:
+        try:
+            subreddit = reddit.subreddit(subreddit)
+            search_results = subreddit.search(product, limit=limit, sort='relevance')
+            
+            for post in search_results:
+                print(f"\nAnalyzing post: {post.title}")
+                print(f"URL: {post.url}\n")
+                
+                # Get comments from the post
+                post.comments.replace_more(limit=0)
+                for comment in post.comments.list():
+                    if comment.body and len(comment.body.strip()) > 20:  # Filter out very short comments
+                        comments.append(comment.body)
+                        
+        except Exception as e:
+            print(f"Error fetching from r/{subreddit}: {str(e)}")
+            
+    return comments
+
+def analyze_complaints(comments: List[str], processor: SimpleLanguageModelProcessor) -> List[Tuple[str, int]]:
+    """Analyze comments and return top complaints."""
+    for comment in comments:
+        processor.process_complaint(comment)
+    return processor.get_complaints()
+
+def export_complaints(complaints: List[Tuple[str, int]], output_file: str = 'top_10_complaints.csv'):
+    """Export complaints to a CSV file."""
+    df = pd.DataFrame(complaints[:10], columns=['Complaint', 'Count'])
+    df.to_csv(output_file, index=False)
+    print(f"\nTop 10 complaints exported to {output_file}\n")
+
+def print_complaints(complaints: List[Tuple[str, int]]):
+    """Print the top complaints in a readable format."""
     print("\nTop 10 Most Frequent Complaints:")
-    for i, (complaint, count) in enumerate(top_10, 1):
+    for i, (complaint, count) in enumerate(complaints[:10], 1):
         print(f"{i}. {complaint} (Count: {count})")
 
 def main():
-    parser = argparse.ArgumentParser(description='Analyze Reddit comments about a product and extract top complaints.')
-    parser.add_argument('product', help='Product name to search for (e.g., "iPhone 15" or "Samsung S24")')
-    parser.add_argument('--posts', type=int, default=10, help='Number of Reddit posts to analyze (default: 10)')
-    parser.add_argument('--output', default='top_10_complaints.csv', help='Output CSV file name (default: top_10_complaints.csv)')
-    
+    import argparse
+    parser = argparse.ArgumentParser(description='Export top complaints about a product from Reddit')
+    parser.add_argument('product', help='Product to search for')
+    parser.add_argument('--posts', type=int, default=100, help='Number of posts to analyze')
+    parser.add_argument('--output', default='top_10_complaints.csv', help='Output CSV file')
     args = parser.parse_args()
-    
-    # Fetch comments from Reddit
-    comments = fetch_reddit_comments(args.product, args.posts)
-    
-    # Process comments using the language model
+
+    # Initialize Reddit client and processor
+    reddit = setup_reddit_client()
     processor = SimpleLanguageModelProcessor()
-    for comment in comments:
-        processor.process_complaint(comment)
+
+    # Fetch and analyze comments
+    print(f"Fetching comments about {args.product}...")
+    comments = get_reddit_comments(reddit, args.product, args.posts)
+    print(f"\nFound {len(comments)} comments to analyze")
+
+    # Process complaints
+    complaints = analyze_complaints(comments, processor)
     
-    # Export and display top complaints
-    export_top_complaints(processor.get_complaints(), args.output)
+    # Export and print results
+    export_complaints(complaints, args.output)
+    print_complaints(complaints)
 
 if __name__ == "__main__":
     main() 
