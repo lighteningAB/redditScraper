@@ -14,10 +14,13 @@ class RedditScraper:
         self.search_terms = ['nothing phone 3a', 'nothing phone 3a pro']
         self.subreddits = ['android', 'smartphones', 'nothingphone']
 
-    def get_posts(self) -> List[Dict]:
+    def get_posts(self, limit: int = 100) -> List[Dict]:
         """
         Scrape Reddit posts and comments related to Nothing Phone 3a and 3a Pro.
-        Returns a list of dictionaries containing post data.
+        Args:
+            limit: Maximum number of posts to fetch per search term (default: 100)
+        Returns:
+            A list of dictionaries containing post data.
         """
         posts_data = []
         
@@ -25,8 +28,9 @@ class RedditScraper:
             subreddit = self.reddit.subreddit(subreddit_name)
             
             for search_term in self.search_terms:
+                print(f"Searching r/{subreddit_name} for '{search_term}'...")
                 # Search for posts
-                for submission in subreddit.search(search_term, limit=100):
+                for submission in subreddit.search(search_term, limit=limit):
                     post_data = {
                         'title': submission.title,
                         'text': submission.selftext,
@@ -44,5 +48,6 @@ class RedditScraper:
                         })
                     
                     posts_data.append(post_data)
+                    print(f"Found post: {submission.title[:50]}...")
         
         return posts_data 

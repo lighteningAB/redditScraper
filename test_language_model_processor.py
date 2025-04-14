@@ -1,63 +1,51 @@
 import os
 from typing import List, Dict, Tuple
-import openai
 from dotenv import load_dotenv
-import numpy as np
 import re
 
-class LanguageModelProcessor:
+class SimpleLanguageModelProcessor:
     def __init__(self):
         load_dotenv()
-        openai.api_key = os.getenv('OPENAI_API_KEY')
-        self.client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         self.complaints = {}  # Dictionary to store complaints and their counts
-        self.embeddings = {}  # Dictionary to store embeddings for each complaint
-        self.similarity_threshold = 0.85  # Threshold for considering complaints similar
-
-    def get_embedding(self, text: str) -> List[float]:
-        """
-        Get embedding for a text using OpenAI's API.
-        """
-        response = self.client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text
-        )
-        return response.data[0].embedding
-
-    def cosine_similarity(self, a: List[float], b: List[float]) -> float:
-        """
-        Calculate cosine similarity between two vectors.
-        """
-        a = np.array(a)
-        b = np.array(b)
-        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+        self.complaint_keywords = [
+            'bad', 'terrible', 'awful', 'disappointed', 'issue', 'problem',
+            'bug', 'crash', 'broken', 'not working', 'doesn\'t work', 'poor',
+            'horrible', 'worst', 'fail', 'faulty', 'defect'
+        ]
 
     def is_similar_complaint(self, new_complaint: str, existing_complaints: List[str]) -> Tuple[bool, str]:
         """
-        Check if a new complaint is similar to any existing complaints.
+        Check if a new complaint is similar to any existing complaints using keyword matching.
         Returns (is_similar, most_similar_complaint).
         """
         if not existing_complaints:
             return False, ""
-
-        # Get embedding for new complaint
-        new_embedding = self.get_embedding(new_complaint)
+        
+        # Extract keywords from new complaint
+        new_keywords = set(word.lower() for word in new_complaint.split() 
+                          if word.lower() in self.complaint_keywords)
+        
+        if not new_keywords:
+            return False, ""
         
         # Compare with existing complaints
-        max_similarity = -1
+        max_common_keywords = 0
         most_similar_complaint = ""
         
         for complaint in existing_complaints:
-            if complaint not in self.embeddings:
-                self.embeddings[complaint] = self.get_embedding(complaint)
+            # Extract keywords from existing complaint
+            existing_keywords = set(word.lower() for word in complaint.split() 
+                                  if word.lower() in self.complaint_keywords)
             
-            similarity = self.cosine_similarity(new_embedding, self.embeddings[complaint])
+            # Count common keywords
+            common_keywords = len(new_keywords.intersection(existing_keywords))
             
-            if similarity > max_similarity:
-                max_similarity = similarity
+            if common_keywords > max_common_keywords:
+                max_common_keywords = common_keywords
                 most_similar_complaint = complaint
         
-        return max_similarity >= self.similarity_threshold, most_similar_complaint
+        # Consider complaints similar if they share at least one keyword
+        return max_common_keywords > 0, most_similar_complaint
 
     def process_complaint(self, complaint_text: str) -> None:
         """
@@ -80,7 +68,6 @@ class LanguageModelProcessor:
         else:
             # Add new complaint
             self.complaints[cleaned_complaint] = 1
-            self.embeddings[cleaned_complaint] = self.get_embedding(cleaned_complaint)
 
     def _clean_complaint(self, text: str) -> str:
         """
