@@ -2,9 +2,12 @@ import os
 from typing import List, Dict, Tuple
 from dotenv import load_dotenv
 import re
+from openai import OpenAI
 
 class SimpleLanguageModelProcessor:
     def __init__(self):
+        load_dotenv()
+        self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         self.complaints = {}  # Dictionary to store complaints and their counts
         self.complaint_keywords = {
             'performance': ['slow', 'lag', 'freeze', 'crash', 'stutter', 'buggy', 'unstable'],
@@ -16,13 +19,65 @@ class SimpleLanguageModelProcessor:
             'price': ['expensive', 'overpriced', 'cost', 'price'],
             'display': ['screen', 'dim', 'brightness', 'tint', 'display']
         }
+        self.negative_words = [
+            'bad', 'poor', 'terrible', 'awful', 'horrible', 'worst', 'disappointing',
+            'mediocre', 'subpar', 'inferior', 'inadequate', 'faulty', 'defective',
+            'problem', 'issue', 'complaint', 'dislike', 'hate', 'regret'
+        ]
         self.comparison_words = ['better', 'worse', 'than', 'compared', 'vs', 'versus', 'over']
         self.product_name = 'nothing phone 3a'
+
+    def _is_negative_feedback(self, text: str) -> bool:
+        """Check if the text contains negative sentiment."""
+        text_lower = text.lower()
+        return any(word in text_lower for word in self.negative_words)
+
+    def _extract_core_issue(self, text: str, category: str) -> str:
+        """Extract the core issue from the complaint text."""
+        # Get the relevant keywords for the category
+        keywords = self.complaint_keywords[category]
+        
+        # Find sentences containing category keywords
+        sentences = text.split('.')
+        relevant_sentences = []
+        
+        for sentence in sentences:
+            if any(keyword in sentence.lower() for keyword in keywords):
+                # Clean up the sentence
+                sentence = sentence.strip()
+                # Remove unnecessary context
+                sentence = re.sub(r'^(i|my|the|this|that|it|they|we|you|he|she|it)\s+', '', sentence, flags=re.IGNORECASE)
+                relevant_sentences.append(sentence)
+        
+        if relevant_sentences:
+            # Return the shortest relevant sentence (usually the most focused on the issue)
+            return min(relevant_sentences, key=len)
+        return text
 
     def _is_about_target_product(self, text: str) -> bool:
         """Check if the comment is specifically about the target product."""
         text_lower = text.lower()
         return self.product_name in text_lower or 'nothing 3a' in text_lower
+
+    def _get_complaint_summary(self, text: str) -> List[str]:
+        """Use OpenAI to generate concise summaries of complaints in the text."""
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a product complaint analyzer. Extract and summarize negative feedback about products. Each summary should be exactly 10 words or less, focusing on the specific issue. If there are multiple complaints, provide a separate summary for each. Only include actual complaints, not positive feedback."},
+                    {"role": "user", "content": f"Analyze this text about {self.product_name} and provide 10-word summaries of any complaints. Text: {text}"}
+                ],
+                temperature=0.3,
+                max_tokens=150
+            )
+            
+            # Split the response into individual summaries
+            summaries = [s.strip() for s in response.choices[0].message.content.split('\n') if s.strip()]
+            return summaries
+        except Exception as e:
+            print(f"Error getting complaint summary: {str(e)}")
+            return []
 
     def _get_complaint_category(self, text: str) -> str:
         """Determine the main category of a complaint."""
@@ -69,9 +124,6 @@ class SimpleLanguageModelProcessor:
 
     def _format_complaint(self, text: str, category: str) -> str:
         """Format the complaint with its category."""
-        text = text.strip()
-        if not text.endswith(('.', '!', '?')):
-            text += '.'
         return f"[{category.upper()}] {text}"
 
     def process_complaint(self, complaint: str) -> None:
@@ -88,22 +140,34 @@ class SimpleLanguageModelProcessor:
         if not self._is_about_target_product(cleaned_complaint):
             return
 
-        # Get complaint category
-        category = self._get_complaint_category(cleaned_complaint)
-        if category == 'other':
+        # Skip if not negative feedback
+        if not self._is_negative_feedback(cleaned_complaint):
             return
 
-        # Format the complaint with category
-        formatted_complaint = self._format_complaint(cleaned_complaint, category)
+        # Get summaries from OpenAI
+        summaries = self._get_complaint_summary(cleaned_complaint)
+        
+        # Process each summary
+        for summary in summaries:
+            if not summary:
+                continue
+                
+            # Get complaint category
+            category = self._get_complaint_category(summary)
+            if category == 'other':
+                continue
 
-        # Check for similar existing complaints
-        for existing_complaint in list(self.complaints.keys()):
-            if self.is_similar_complaint(cleaned_complaint, [existing_complaint]):
-                self.complaints[existing_complaint] += 1
-                return
+            # Format the complaint with category
+            formatted_complaint = self._format_complaint(summary, category)
 
-        # If no similar complaint found, add as new
-        self.complaints[formatted_complaint] = 1
+            # Check for similar existing complaints
+            for existing_complaint in list(self.complaints.keys()):
+                if self.is_similar_complaint(formatted_complaint, [existing_complaint]):
+                    self.complaints[existing_complaint] += 1
+                    return
+
+            # If no similar complaint found, add as new
+            self.complaints[formatted_complaint] = 1
 
     def get_complaints(self) -> List[Tuple[str, int]]:
         """Return the processed complaints and their counts."""

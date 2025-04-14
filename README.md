@@ -1,110 +1,90 @@
-# Reddit Complaint Analyzer
+# Reddit Feedback Analyzer
 
-A command-line tool that analyzes Reddit comments about a product and extracts the most common complaints, categorizing them into different aspects like camera, performance, battery, etc.
+A Python tool that analyzes Reddit discussions about products to extract and categorize user feedback. The tool uses OpenAI's GPT-4 to analyze posts and comments, generating a comprehensive feedback matrix and detailed summaries.
 
 ## Features
 
-- Searches Reddit for product reviews and discussions
-- Analyzes comments to identify common complaints
-- Categorizes complaints into different aspects (camera, performance, battery, etc.)
-- Generates concise summaries of each complaint
-- Exports results to CSV and displays them in the terminal
+- **Reddit Data Collection**: Fetches posts and comments from relevant subreddits
+- **AI-Powered Analysis**: Uses OpenAI's GPT-4 to analyze and categorize feedback
+- **Feedback Categorization**: 
+  - Features: design, camera, performance, battery, software, display, price, audio
+  - Feedback Types: missing_feature, unuseful_feature, worse_than_competitor, very_good_feature, better_than_competitor, neutral
+- **Visualizations**:
+  - Feedback Matrix Heatmap: Shows distribution of feedback types across features
+  - Feature Distribution Chart: Displays percentage of feedback for each feature
+- **Detailed Export**: Generates a CSV file with comprehensive feedback summaries
+
+## Requirements
+
+- Python 3.8+
+- Reddit API credentials
+- OpenAI API key
+- Required Python packages (see requirements.txt)
 
 ## Installation
 
-1. Clone this repository:
+1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/redditScraper.git
 cd redditScraper
 ```
 
-2. Install required packages:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file in the project root with your API credentials:
+3. Set up environment variables:
+Create a `.env` file with your API credentials:
 ```
-REDDIT_CLIENT_ID=your_client_id
-REDDIT_CLIENT_SECRET=your_client_secret
+REDDIT_CLIENT_ID=your_reddit_client_id
+REDDIT_CLIENT_SECRET=your_reddit_client_secret
 REDDIT_USER_AGENT=your_user_agent
 OPENAI_API_KEY=your_openai_api_key
 ```
 
-### Getting API Keys:
-
-#### Reddit API:
-1. Go to https://www.reddit.com/prefs/apps
-2. Click "create another app..."
-3. Select "script"
-4. Fill in the required information
-5. Copy the client ID and client secret to your .env file
-
-#### OpenAI API (Optional - for enhanced analysis):
-1. Go to https://platform.openai.com/api-keys
-2. Create a new API key
-3. Copy the key to your .env file as OPENAI_API_KEY
-4. Note: If you don't provide an OpenAI API key, the tool will use a simpler analysis method
-
 ## Usage
 
-Run the script from the command line with the following syntax:
+Run the analyzer with a product name:
 
 ```bash
-python export_top_complaints.py "Product Name" [--posts NUMBER] [--output FILENAME]
+python reddit_feedback_analyzer.py "Product Name" --posts 10
 ```
 
-### Arguments:
-
-- `Product Name`: The name of the product to analyze (required)
-- `--posts`: Number of Reddit posts to analyze (optional, default: 10)
-- `--output`: Output CSV file name (optional, default: top_10_complaints.csv)
-
-### Examples:
-
-Analyze the latest 10 posts about iPhone 15:
-```bash
-python export_top_complaints.py "iPhone 15"
-```
-
-Analyze 20 posts about Samsung S24 and save to a custom file:
-```bash
-python export_top_complaints.py "Samsung S24" --posts 20 --output s24_complaints.csv
-```
+Arguments:
+- `product`: Name of the product to analyze (required)
+- `--posts`: Number of posts to analyze (default: 10)
 
 ## Output
 
-The tool will:
-1. Display progress as it fetches and analyzes Reddit posts
-2. Show the top 10 most frequent complaints in the terminal
-3. Export the results to a CSV file
+The tool generates:
 
-The complaints are categorized into:
-- Camera
-- Performance
-- Battery
-- Storage
-- Display
-- Design
-- Price
-- Software
-- Hardware
+1. **Feedback Matrix Visualization** (`product_name_feedback_matrix.png`):
+   - Heatmap showing distribution of feedback types
+   - Features on Y-axis, feedback types on X-axis
+   - Color intensity indicates frequency of feedback
 
-## Analysis Modes
+2. **Feature Distribution Chart** (`product_name_feedback_distribution.png`):
+   - Bar chart showing percentage of total feedback per feature
+   - Helps identify most discussed aspects of the product
 
-The tool has two analysis modes:
+3. **Detailed Feedback CSV** (`complaints.csv`):
+   - Contains detailed feedback for each feature
+   - Columns: title, feature, feedback_type, summary, url
+   - Provides context and specific details for each piece of feedback
 
-1. **Simple Mode** (Default): Uses keyword-based analysis to identify and categorize complaints. No API key required.
+## Example
 
-2. **Enhanced Mode** (With OpenAI API): Uses OpenAI's language models for more accurate complaint analysis and summarization. Requires an OpenAI API key in the .env file.
+```bash
+python reddit_feedback_analyzer.py "Nothing Phone 3a" --posts 5
+```
 
-## Requirements
+This will:
+1. Fetch 5 posts about the Nothing Phone 3a
+2. Analyze feedback using GPT-4
+3. Generate visualizations
+4. Export detailed feedback to complaints.csv
 
-- Python 3.6+
-- praw
-- python-dotenv
-- openai (optional)
+## Contributing
 
-## License
-
-MIT License 
+Feel free to submit issues and enhancement requests! 
