@@ -28,13 +28,12 @@ class RedditFeedbackAnalyzer:
             "software", "display", "price", "audio"
         ]
         
+        # Define feedback types
         self.feedback_types = [
             "missing_feature",
-            "unuseful_feature",
-            "worse_than_competitor",
-            "very_good_feature",
-            "better_than_competitor",
-            "neutral"
+            "poor_compared_to_competitor",
+            "unnecessary_feature",
+            "awesome"
         ]
         
         # Initialize feedback matrix
@@ -79,34 +78,42 @@ class RedditFeedbackAnalyzer:
         
         for post in posts_data:
             prompt = f"""
-            Analyze this post about {self.product_name}:
-            Title: {post['title']}
-            Content: {post['content']}
-            Comments: {', '.join(post['comments'])}
+            Analyze the following Reddit post and comments about the {self.product_name}. 
+            Categorize the feedback into the following features:
+            - design
+            - camera
+            - performance
+            - battery
+            - software
+            - display
+            - price
+            - audio
             
-            For each feature category mentioned (design, camera, performance, battery, software, display, price, audio),
-            classify the feedback type as one of:
-            - missing_feature
-            - unuseful_feature
-            - worse_than_competitor
-            - very_good_feature
-            - better_than_competitor
-            - neutral
+            For each feature mentioned, provide feedback in one of these categories:
+            - missing_feature: Feature is missing or not available
+            - poor_compared_to_competitor: Feature is worse than competitors
+            - unnecessary_feature: Feature is not useful or unnecessary
+            - awesome: Feature is excellent or better than competitors
             
-            Also provide a brief summary (max 100 characters) of the feedback for each feature.
+            Post title: {post['title']}
+            Post content: {post['content']}
             
-            Format: Return a JSON object with feature categories as keys and objects as values.
-            Each object should have 'type' and 'summary' fields.
-            Only include features that are explicitly mentioned.
+            Comments:
+            {', '.join(post['comments'])}
+            
+            Return a JSON object with each feature as a key and an object containing:
+            - type: one of the feedback types above
+            - summary: a brief summary of the feedback
+            
             Example response format:
             {{
                 "camera": {{
-                    "type": "very_good_feature",
-                    "summary": "Excellent low-light performance and color accuracy"
+                    "type": "poor_compared_to_competitor",
+                    "summary": "Camera quality is worse than iPhone 13 Pro"
                 }},
                 "battery": {{
-                    "type": "worse_than_competitor",
-                    "summary": "Battery life shorter than Samsung Galaxy S24"
+                    "type": "awesome",
+                    "summary": "Battery lasts all day with heavy use"
                 }}
             }}
             """
