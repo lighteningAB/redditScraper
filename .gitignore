@@ -40,3 +40,9 @@ env/
 # Project specific
 nothing_phone_complaints.csv
 *.log 
+
+# Generated files
+complaints.csv
+*_feedback_matrix.png
+*_feedback_distribution.png
+*.csv 
