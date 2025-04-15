@@ -25,7 +25,7 @@ A Python tool that analyzes Reddit discussions about products to extract and cat
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/redditScraper.git
+git clone https://github.com/lighteningAB/redditScraper.git
 cd redditScraper
 ```
 
