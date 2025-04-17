@@ -1,90 +1,113 @@
-# Reddit Feedback Analyzer
+# Multi-Platform Feedback Analyzer
 
-A Python tool that analyzes Reddit discussions about products to extract and categorize user feedback. The tool uses OpenAI's GPT-4 to analyze posts and comments, generating a comprehensive feedback matrix and detailed summaries.
+A powerful tool for analyzing user feedback about products across multiple platforms: Reddit, YouTube, and X (Twitter).
 
 ## Features
 
-- **Reddit Data Collection**: Fetches posts and comments from relevant subreddits
-- **AI-Powered Analysis**: Uses OpenAI's GPT-4 to analyze and categorize feedback
-- **Feedback Categorization**: 
-  - Features: design, camera, performance, battery, software, display, price, audio
-  - Feedback Types: missing_feature, unuseful_feature, worse_than_competitor, very_good_feature, better_than_competitor, neutral
-- **Visualizations**:
-  - Feedback Matrix Heatmap: Shows distribution of feedback types across features
-  - Feature Distribution Chart: Displays percentage of feedback for each feature
-- **Detailed Export**: Generates a CSV file with comprehensive feedback summaries
-
-## Requirements
-
-- Python 3.8+
-- Reddit API credentials
-- OpenAI API key
-- Required Python packages (see requirements.txt)
+- **Multi-Platform Analysis**: Collects and analyzes feedback from Reddit, YouTube, and X (Twitter)
+- **Comprehensive Feedback Categorization**: Automatically categorizes feedback into specific features (design, camera, performance, etc.)
+- **Sentiment Analysis**: Identifies whether features are praised, criticized, or compared to competitors
+- **Visual Analytics**: Generates heatmaps and distribution charts to visualize feedback patterns
+- **Detailed Export**: Exports all feedback with summaries to CSV for further analysis
+- **Source Distribution**: Shows the distribution of feedback across different platforms
 
 ## Installation
 
-1. Clone the repository:
+1. Clone this repository:
 ```bash
-git clone https://github.com/lighteningAB/redditScraper.git
-cd redditScraper
+git clone https://github.com/yourusername/multi-platform-feedback-analyzer.git
+cd multi-platform-feedback-analyzer
 ```
 
-2. Install dependencies:
+2. Create a virtual environment and activate it:
+```bash
+conda create -n scraper python=3.9
+conda activate scraper
+```
+
+3. Install the required packages:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables:
-Create a `.env` file with your API credentials:
+4. Set up API keys in a `.env` file:
 ```
+# Reddit API credentials
 REDDIT_CLIENT_ID=your_reddit_client_id
 REDDIT_CLIENT_SECRET=your_reddit_client_secret
-REDDIT_USER_AGENT=your_user_agent
+REDDIT_USER_AGENT=your_app_name/1.0
+
+# OpenAI API key
 OPENAI_API_KEY=your_openai_api_key
+
+# YouTube API key (optional)
+YOUTUBE_API_KEY=your_youtube_api_key
+
+# Twitter/X API credentials (optional)
+TWITTER_API_KEY=your_twitter_api_key
+TWITTER_API_SECRET=your_twitter_api_secret
+TWITTER_ACCESS_TOKEN=your_twitter_access_token
+TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret
 ```
 
 ## Usage
 
-Run the analyzer with a product name:
+Run the script with a product name to analyze feedback:
 
 ```bash
-python reddit_feedback_analyzer.py "Product Name" --posts 10
+python reddit_feedback_analyzer.py "Product Name" --posts 10 --platforms reddit youtube twitter
 ```
 
-Arguments:
-- `product`: Name of the product to analyze (required)
-- `--posts`: Number of posts to analyze (default: 10)
+### Arguments
 
-## Output
+- `product`: The name of the product to analyze (required)
+- `--posts`: Number of posts to analyze per platform (default: 10)
+- `--platforms`: Platforms to analyze (default: reddit youtube twitter)
 
-The tool generates:
+### Output
 
-1. **Feedback Matrix Visualization** (`product_name_feedback_matrix.png`):
-   - Heatmap showing distribution of feedback types
-   - Features on Y-axis, feedback types on X-axis
-   - Color intensity indicates frequency of feedback
+The script generates:
 
-2. **Feature Distribution Chart** (`product_name_feedback_distribution.png`):
-   - Bar chart showing percentage of total feedback per feature
-   - Helps identify most discussed aspects of the product
+1. **Feedback Matrix Visualization**: A heatmap showing the distribution of feedback types across features
+2. **Feature Distribution Chart**: A bar chart showing the percentage of total feedback for each feature
+3. **Source Distribution Chart**: A pie chart showing the distribution of feedback across platforms
+4. **CSV Export**: A detailed CSV file with all feedback, including summaries
 
-3. **Detailed Feedback CSV** (`complaints.csv`):
-   - Contains detailed feedback for each feature
-   - Columns: title, feature, feedback_type, summary, url
-   - Provides context and specific details for each piece of feedback
+## API Setup Instructions
+
+### Reddit API
+
+1. Go to https://www.reddit.com/prefs/apps
+2. Click "Create another app..."
+3. Select "script" as the type
+4. Fill in the name and description
+5. For "redirect uri" use http://localhost:8080
+6. Note the client ID (under the app name) and client secret
+
+### YouTube API
+
+1. Go to https://console.cloud.google.com/
+2. Create a new project
+3. Enable the YouTube Data API v3
+4. Create credentials (API key)
+5. Copy the API key to your .env file
+
+### Twitter/X API
+
+1. Go to https://developer.twitter.com/
+2. Create a new project and app
+3. Generate API key and secret
+4. Generate access token and secret
+5. Add these to your .env file
 
 ## Example
 
 ```bash
-python reddit_feedback_analyzer.py "Nothing Phone 3a" --posts 5
+python reddit_feedback_analyzer.py "Nothing Phone 3a" --posts 5 --platforms reddit youtube
 ```
 
-This will:
-1. Fetch 5 posts about the Nothing Phone 3a
-2. Analyze feedback using GPT-4
-3. Generate visualizations
-4. Export detailed feedback to complaints.csv
+This will analyze 5 posts from Reddit and 5 videos from YouTube about the Nothing Phone 3a, generating visualizations and a CSV export.
 
-## Contributing
+## License
 
-Feel free to submit issues and enhancement requests! 
+MIT 
