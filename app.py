@@ -11,6 +11,8 @@ import pandas as pd
 import praw
 from googleapiclient.discovery import build
 from openai import OpenAI
+import numpy as np
+
 
 # Load environment variables
 load_dotenv()
@@ -172,61 +174,65 @@ if st.button("Run Analysis"):
                     unsafe_allow_html=True
                 )
             
-            # Generate visualizations
-            with st.spinner("Generating visualizations..."):
-                analyzer.visualize_feedback_matrix()
-                output_buffer.write("Visualizations generated\n")
-                output_container.markdown(
-                    f'<div class="output-box">{output_buffer.getvalue().replace(chr(10), "<br>")}</div>',
-                    unsafe_allow_html=True
-                )
-            
-            # Export details
-            analyzer.export_feedback_details()
-            output_buffer.write("Results exported to CSV\n")
-            output_container.markdown(
-                f'<div class="output-box">{output_buffer.getvalue().replace(chr(10), "<br>")}</div>',
-                unsafe_allow_html=True
+            # 1) Heatmap of feedback matrix
+            fig1, ax1 = plt.subplots(figsize=(15, 10))
+            matrix_data = np.array([
+                [analyzer.feedback_matrix[feat][ft] for ft in analyzer.feedback_types]
+                for feat in analyzer.feature_categories
+            ])
+            sns.heatmap(
+                matrix_data,
+                annot=True,
+                fmt=".0f",
+                cmap="YlOrRd",
+                xticklabels=analyzer.feedback_types,
+                yticklabels=analyzer.feature_categories,
+                cbar_kws={"label": "Number of feedback items"},
+                ax=ax1
             )
-            
-            # Display visualizations in the matrix container
-            with matrix_container:
-                st.markdown('<div class="matrix-box">', unsafe_allow_html=True)
-                st.subheader("Analysis Results")
-                
-                # Display the feedback matrix
-                matrix_col, dist_col = st.columns(2)
-                
-                with matrix_col:
-                    st.image(
-                        f"{product_name.replace(' ', '_')}_feedback_matrix.png",
-                        caption="Feedback Matrix",
-                        use_column_width=True
-                    )
-                
-                with dist_col:
-                    st.image(
-                        f"{product_name.replace(' ', '_')}_feedback_distribution.png",
-                        caption="Feedback Distribution by Feature",
-                        use_column_width=True
-                    )
-                
-                # Display source distribution
-                st.image(
-                    f"{product_name.replace(' ', '_')}_source_distribution.png",
-                    caption="Feedback Distribution by Source",
-                    use_column_width=True
+            ax1.set_title(f"Feedback Matrix for {product_name}", pad=20, fontsize=14)
+            ax1.set_xlabel("Feedback Type")
+            ax1.set_ylabel("Feature Category")
+            st.pyplot(fig1)
+
+            # 2) Bar chart of feedback by feature
+            fig2, ax2 = plt.subplots(figsize=(12, 6))
+            totals = np.array([
+                sum(analyzer.feedback_matrix[feat].values())
+                for feat in analyzer.feature_categories
+            ])
+            percentages = (totals / totals.sum() * 100) if totals.sum() > 0 else np.zeros_like(totals)
+            ax2.bar(analyzer.feature_categories, percentages)
+            ax2.set_title(f"Feedback Distribution by Feature for {product_name}", pad=20, fontsize=14)
+            ax2.set_ylabel("Percentage of total feedback")
+            ax2.set_xticklabels(analyzer.feature_categories, rotation=45, ha="right")
+            st.pyplot(fig2)
+
+            # 3) Pie chart of feedback by source
+            fig3, ax3 = plt.subplots(figsize=(8, 8))
+            source_totals = {s: c for s, c in analyzer.feedback_by_source.items() if c > 0}
+            if source_totals:
+                ax3.pie(
+                    source_totals.values(),
+                    labels=source_totals.keys(),
+                    autopct="%1.1f%%",
+                    startangle=90
                 )
-                
-                # Display download button for CSV
-                with open("complaints.csv", "rb") as file:
-                    st.download_button(
-                        label="Download Detailed Results (CSV)",
-                        data=file,
-                        file_name=f"{product_name.replace(' ', '_')}_feedback.csv",
-                        mime="text/csv"
-                    )
-                st.markdown('</div>', unsafe_allow_html=True)
+                ax3.set_title(f"Feedback Distribution by Source for {product_name}", pad=20, fontsize=14)
+                ax3.axis("equal")
+            else:
+                ax3.text(0.5, 0.5, "No feedback by source", ha="center", va="center", fontsize=14)
+                ax3.axis("off")
+            st.pyplot(fig3)
+
+            # Finally, offer the CSV download as you already do:
+            with open("complaints.csv", "rb") as file:
+                st.download_button(
+                    label="Download Detailed Results (CSV)",
+                    data=file,
+                    file_name=f"{product_name.replace(' ', '_')}_feedback.csv",
+                    mime="text/csv"
+                )
 
 # Add footer with instructions
 st.markdown("---")

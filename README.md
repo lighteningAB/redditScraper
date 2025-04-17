@@ -78,19 +78,6 @@ streamlit run app.py
    - See the final results in the matrix box below
    - Download the detailed CSV report using the download button
 
-### Command Line Interface
-
-You can also run the script directly from the command line:
-
-```bash
-python reddit_feedback_analyzer.py "Product Name" --posts 10 --platforms reddit youtube twitter
-```
-
-### Arguments
-
-- `product`: The name of the product to analyze (required)
-- `--posts`: Number of posts to analyze per platform (default: 10)
-- `--platforms`: Platforms to analyze (default: reddit youtube twitter)
 
 ### Output
 
@@ -127,14 +114,6 @@ The script generates:
 3. Generate API key and secret
 4. Generate access token and secret
 5. Add these to your .env file
-
-## Example
-
-```bash
-python reddit_feedback_analyzer.py "Nothing Phone 3a" --posts 5 --platforms reddit youtube
-```
-
-This will analyze 5 posts from Reddit and 5 videos from YouTube about the Nothing Phone 3a, generating visualizations and a CSV export.
 
 ## License
 
