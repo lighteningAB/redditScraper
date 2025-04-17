@@ -165,15 +165,14 @@ if st.button("Run Analysis"):
                 unsafe_allow_html=True
             )
             
-            # Analyze feedback
-            with st.spinner("Analyzing feedback..."):
-                analyzer.analyze_feedback(all_posts_data)
-                output_buffer.write("\nFeedback analysis complete\n")
-                output_container.markdown(
-                    f'<div class="output-box">{output_buffer.getvalue().replace(chr(10), "<br>")}</div>',
-                    unsafe_allow_html=True
-                )
-            
+            analyzer.analyze_feedback(all_posts_data)
+            st.session_state.analyzer = analyzer
+            st.session_state.feature_categories = analyzer.feature_categories
+            st.session_state.feedback_types = analyzer.feedback_types
+
+            # Display feedback visualizations
+            st.header("Feedback Visualizations")
+            col1, col2, col3 = st.columns(3)
             # 1) Heatmap of feedback matrix
             fig1, ax1 = plt.subplots(figsize=(15, 10))
             matrix_data = np.array([
@@ -193,7 +192,7 @@ if st.button("Run Analysis"):
             ax1.set_title(f"Feedback Matrix for {product_name}", pad=20, fontsize=14)
             ax1.set_xlabel("Feedback Type")
             ax1.set_ylabel("Feature Category")
-            st.pyplot(fig1)
+            col1.pyplot(fig1)
 
             # 2) Bar chart of feedback by feature
             fig2, ax2 = plt.subplots(figsize=(12, 6))
@@ -206,7 +205,7 @@ if st.button("Run Analysis"):
             ax2.set_title(f"Feedback Distribution by Feature for {product_name}", pad=20, fontsize=14)
             ax2.set_ylabel("Percentage of total feedback")
             ax2.set_xticklabels(analyzer.feature_categories, rotation=45, ha="right")
-            st.pyplot(fig2)
+            col2.pyplot(fig2)
 
             # 3) Pie chart of feedback by source
             fig3, ax3 = plt.subplots(figsize=(8, 8))
@@ -223,7 +222,7 @@ if st.button("Run Analysis"):
             else:
                 ax3.text(0.5, 0.5, "No feedback by source", ha="center", va="center", fontsize=14)
                 ax3.axis("off")
-            st.pyplot(fig3)
+            col3.pyplot(fig3)
 
             # Finally, offer the CSV download as you already do:
             with open("complaints.csv", "rb") as file:
@@ -233,6 +232,48 @@ if st.button("Run Analysis"):
                     file_name=f"{product_name.replace(' ', '_')}_feedback.csv",
                     mime="text/csv"
                 )
+
+if 'analyzer' in st.session_state:
+    st.header("Detailed Feedback Filter")
+    st.session_state.setdefault("selected_feature", None)
+    st.session_state.setdefault("selected_feedback_type", None)
+    st.session_state.setdefault("summaries_text", "")
+
+    def update_summaries():
+        try:
+            df = pd.read_csv("complaints.csv")
+            f = st.session_state.selected_feature
+            t = st.session_state.selected_feedback_type
+            if f and t:
+                filtered_df = df[(df["feature"] == f) & (df["feedback_type"] == t)]
+                summaries = filtered_df["summary"].tolist()
+                display_text = "\n".join([f"- {summary}" for summary in summaries]) if summaries else "No matching summaries found."
+            else:
+                display_text = ""
+        except FileNotFoundError:
+            display_text = "Error: complaints.csv not found. Please run the analysis first."
+        except pd.errors.EmptyDataError:
+            display_text = "Error: complaints.csv is empty."
+        except Exception as e:
+            display_text = f"An error occurred: {e}"
+
+        st.session_state.summaries_text = display_text
+
+    st.selectbox(
+        "Feature Category",
+        options=st.session_state.feature_categories,
+        key="selected_feature",
+        on_change=update_summaries,
+    )
+
+    st.selectbox(
+        "Feedback Type",
+        options=st.session_state.feedback_types,
+        key="selected_feedback_type",
+        on_change=update_summaries,
+    )
+
+    st.text_area("Matching Summaries", value=st.session_state.summaries_text, height=200)
 
 # Add footer with instructions
 st.markdown("---")
