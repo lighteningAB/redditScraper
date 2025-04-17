@@ -25,7 +25,6 @@ st.set_page_config(
 st.markdown("""
     <style>
     .output-box {
-        background-color: #f0f2f6;
         border-radius: 5px;
         padding: 10px;
         margin: 10px 0;
