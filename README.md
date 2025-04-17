@@ -16,9 +16,8 @@ A powerful tool for analyzing user feedback about products across multiple platf
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/multi-platform-feedback-analyzer.git
-cd multi-platform-feedback-analyzer
-```
+git clone https://github.com/lighteningAB/redditScraper.git
+cd redditScraper
 
 2. Create a virtual environment and activate it:
 ```bash
