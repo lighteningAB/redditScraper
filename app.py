@@ -112,23 +112,40 @@ if st.button("Run Analysis"):
                     reddit_posts = analyzer.fetch_reddit_posts(num_posts)
                     all_posts_data.extend(reddit_posts)
                     output_buffer.write(f"Found {len(reddit_posts)} Reddit posts\n")
+                    output_container.markdown(
+                        f'<div class="output-box">{output_buffer.getvalue().replace(chr(10), "<br>")}</div>',
+                        unsafe_allow_html=True
+                    )
 
             if analyze_youtube:
                 with st.spinner("Fetching YouTube comments..."):
                     youtube_posts = analyzer.fetch_youtube_comments(num_posts)
                     all_posts_data.extend(youtube_posts)
                     output_buffer.write(f"Found {len(youtube_posts)} YouTube comments\n")
+                    output_container.markdown(
+                        f'<div class="output-box">{output_buffer.getvalue().replace(chr(10), "<br>")}</div>',
+                        unsafe_allow_html=True
+                    )
 
             if analyze_twitter:
                 with st.spinner("Fetching Twitter posts..."):
                     twitter_posts = analyzer.fetch_twitter_posts(num_posts)
                     all_posts_data.extend(twitter_posts)
                     output_buffer.write(f"Found {len(twitter_posts)} Twitter posts\n")
+                    output_container.markdown(
+                        f'<div class="output-box">{output_buffer.getvalue().replace(chr(10), "<br>")}</div>',
+                        unsafe_allow_html=True
+                    )
 
             output_buffer.write(f"\nTotal posts to analyze: {len(all_posts_data)}\n")
+            output_container.markdown(
+                f'<div class="output-box">{output_buffer.getvalue().replace(chr(10), "<br>")}</div>',
+                unsafe_allow_html=True
+            )
             st.session_state.output_text = output_buffer.getvalue()
 
             analyzer.analyze_feedback(all_posts_data)
+            analyzer.export_feedback_details()
             st.session_state.analyzer = analyzer
             st.session_state.feature_categories = analyzer.feature_categories
             st.session_state.feedback_types = analyzer.feedback_types
@@ -141,7 +158,6 @@ if st.button("Run Analysis"):
                     mime="text/csv"
                 )
 
-            # Store plots in session state
             fig1, ax1 = plt.subplots(figsize=(15, 10))
             matrix_data = np.array([
                 [analyzer.feedback_matrix[feat][ft] for ft in analyzer.feedback_types]
@@ -190,7 +206,6 @@ if st.button("Run Analysis"):
                 ax3.axis("off")
             st.session_state.plot3 = fig3
 
-# Re-render outputs and plots if they exist
 if "output_text" in st.session_state:
     output_container.markdown(
         f'<div class="output-box">{st.session_state.output_text.replace(chr(10), "<br>")}</div>',
