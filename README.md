@@ -10,6 +10,7 @@ A powerful tool for analyzing user feedback about products across multiple platf
 - **Visual Analytics**: Generates heatmaps and distribution charts to visualize feedback patterns
 - **Detailed Export**: Exports all feedback with summaries to CSV for further analysis
 - **Source Distribution**: Shows the distribution of feedback across different platforms
+- **Web Interface**: User-friendly Streamlit web app for easy interaction
 
 ## Installation
 
@@ -52,7 +53,34 @@ TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret
 
 ## Usage
 
-Run the script with a product name to analyze feedback:
+### Web App (Recommended)
+
+The easiest way to use this tool is through the Streamlit web interface:
+
+1. Make sure your conda environment is activated:
+```bash
+conda activate scraper
+```
+
+2. Run the Streamlit app:
+```bash
+streamlit run app.py
+```
+
+3. Open your browser and navigate to the URL shown in the terminal (typically http://localhost:8501)
+
+4. Using the web interface:
+   - Enter the product name you want to analyze
+   - Select which platforms to analyze (Reddit, YouTube, Twitter)
+   - Set the number of posts to analyze per platform using the slider
+   - Click "Run Analysis" to start
+   - View real-time progress in the output box
+   - See the final results in the matrix box below
+   - Download the detailed CSV report using the download button
+
+### Command Line Interface
+
+You can also run the script directly from the command line:
 
 ```bash
 python reddit_feedback_analyzer.py "Product Name" --posts 10 --platforms reddit youtube twitter
