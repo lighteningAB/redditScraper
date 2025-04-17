@@ -11,6 +11,7 @@ import argparse
 import json
 import re
 from datetime import datetime, timedelta
+import streamlit as st
 
 # For YouTube API
 try:
@@ -28,10 +29,11 @@ except ImportError:
     TWITTER_API_AVAILABLE = False
 
 class MultiPlatformFeedbackAnalyzer:
-    def __init__(self, product_name: str):
+    def __init__(self, product_name: str, output_buffer=None):
         """Initialize the analyzer with product name and API clients."""
         load_dotenv()
         self.product_name = product_name
+        self.output_buffer = output_buffer
         
         # Initialize Reddit client
         self.reddit = praw.Reddit(
@@ -73,13 +75,19 @@ class MultiPlatformFeedbackAnalyzer:
             "awesome"
         ]
         
-        # Initialize feedback matrix
-        self.feedback_matrix = np.zeros((len(self.feature_categories), len(self.feedback_types)))
+        # Initialize feedback tracking
+        self.feedback_matrix = {feature: {feedback_type: 0 for feedback_type in self.feedback_types} 
+                              for feature in self.feature_categories}
+        self.feedback_by_source = {
+            'reddit_post': 0, 'reddit_comment': 0, 
+            'youtube': 0, 'twitter': 0
+        }
         self.feedback_details = []
 
     def fetch_reddit_posts(self, num_posts=3):
         """Fetch posts from Reddit about the product."""
-        print(f"Fetching Reddit posts about {self.product_name}...")
+        if self.output_buffer:
+            self.output_buffer.write(f"Fetching Reddit posts about {self.product_name}...\n")
         
         try:
             # Search for posts about the product
@@ -91,8 +99,9 @@ class MultiPlatformFeedbackAnalyzer:
             
             posts_data = []
             for post in search_results:
-                print(f"\nAnalyzing Reddit post: {post.title}")
-                print(f"URL: {post.url}\n")
+                if self.output_buffer:
+                    self.output_buffer.write(f"\nAnalyzing Reddit post: {post.title}\n")
+                    self.output_buffer.write(f"URL: {post.url}\n")
                 
                 # Add the main post as one piece of feedback
                 if hasattr(post, 'selftext') and post.selftext:
@@ -114,11 +123,13 @@ class MultiPlatformFeedbackAnalyzer:
                             'source': 'reddit_comment'
                         })
             
-            print(f"\nFound {len(posts_data)} Reddit items to analyze (posts and comments)")
+            if self.output_buffer:
+                self.output_buffer.write(f"\nFound {len(posts_data)} Reddit items to analyze (posts and comments)\n")
             return posts_data
             
         except Exception as e:
-            print(f"Error fetching Reddit posts: {e}")
+            if self.output_buffer:
+                self.output_buffer.write(f"Error fetching Reddit posts: {e}\n")
             return []
 
     def fetch_youtube_comments(self, num_posts=3):
@@ -127,6 +138,11 @@ class MultiPlatformFeedbackAnalyzer:
         Args:
             num_posts: Number of videos to analyze (not the number of comments)
         """
+        if not self.youtube:
+            if self.output_buffer:
+                self.output_buffer.write("YouTube API client not initialized. Please provide a valid YouTube API key.\n")
+            return []
+            
         try:
             # Search for videos about the product
             search_response = self.youtube.search().list(
@@ -142,15 +158,16 @@ class MultiPlatformFeedbackAnalyzer:
                 if search_result['id'].get('videoId'):
                     video_id = search_result['id']['videoId']
                     video_title = search_result['snippet']['title']
-                    print(f"\nAnalyzing YouTube video: {video_title}")
-                    print(f"URL: https://www.youtube.com/watch?v={video_id}\n")
+                    if self.output_buffer:
+                        self.output_buffer.write(f"\nAnalyzing YouTube video: {video_title}\n")
+                        self.output_buffer.write(f"URL: https://www.youtube.com/watch?v={video_id}\n")
                     
                     try:
                         # Get comments for the video
                         comments_response = self.youtube.commentThreads().list(
                             part='snippet',
                             videoId=video_id,
-                            maxResults=10,  # Get up to 10 comments per video
+                            maxResults=20,  # Get up to 20 comments per video
                             order='relevance'
                         ).execute()
 
@@ -164,20 +181,24 @@ class MultiPlatformFeedbackAnalyzer:
                                 'source': 'youtube'
                             })
                     except HttpError as e:
-                        print(f"Error fetching comments for video {video_id}: {e}")
+                        if self.output_buffer:
+                            self.output_buffer.write(f"Error fetching comments for video {video_id}: {e}\n")
                         continue
 
-            print(f"\nFound {len(comments)} YouTube comments to analyze")
+            if self.output_buffer:
+                self.output_buffer.write(f"\nFound {len(comments)} YouTube comments to analyze\n")
             return comments
         except Exception as e:
-            print(f"Error fetching YouTube comments: {e}")
+            if self.output_buffer:
+                self.output_buffer.write(f"Error fetching YouTube comments: {e}\n")
             return []
 
     def fetch_twitter_posts(self, num_posts=3):
         """Fetch posts from Twitter about the product."""
         try:
             if not self.twitter:
-                print("Twitter API access not available. Skipping Twitter posts.")
+                if self.output_buffer:
+                    self.output_buffer.write("Twitter API access not available. Skipping Twitter posts.\n")
                 return []
 
             # Search for tweets about the product
@@ -202,45 +223,46 @@ class MultiPlatformFeedbackAnalyzer:
                         })
             except Exception as e:
                 if '403' in str(e):
-                    print("Twitter API access level insufficient. Skipping Twitter posts.")
+                    if self.output_buffer:
+                        self.output_buffer.write("Twitter API access level insufficient. Skipping Twitter posts.\n")
                 else:
-                    print(f"Error fetching Twitter posts: {e}")
+                    if self.output_buffer:
+                        self.output_buffer.write(f"Error fetching Twitter posts: {e}\n")
                 return []
 
             return tweets
         except Exception as e:
-            print(f"Error fetching Twitter posts: {e}")
+            if self.output_buffer:
+                self.output_buffer.write(f"Error fetching Twitter posts: {e}\n")
             return []
 
     def analyze_feedback(self, posts_data):
         """Analyze feedback from posts and comments using OpenAI."""
-        print("\nAnalyzing feedback...")
+        if self.output_buffer:
+            self.output_buffer.write("\nAnalyzing feedback...\n")
         
-        # Initialize feedback matrix
+        # Reset feedback tracking
         self.feedback_matrix = {feature: {feedback_type: 0 for feedback_type in self.feedback_types} 
                               for feature in self.feature_categories}
-        
-        # Track feedback by source
-        self.feedback_by_source = {'reddit': 0, 'youtube': 0, 'twitter': 0}
-        
-        # Initialize feedback details list
+        self.feedback_by_source = {
+            'reddit_post': 0, 'reddit_comment': 0, 
+            'youtube': 0, 'twitter': 0
+        }
         self.feedback_details = []
         
         for post in posts_data:
-            print(f"\nAnalyzing {post['source']}: {post['title']}")
+            if self.output_buffer:
+                self.output_buffer.write(f"\nAnalyzing {post['source']}: {post['title']}\n")
             
-            # Format comments for analysis
-            comments_text = post.get('comments', [])
-            if isinstance(comments_text, list):
-                comments_text = ' '.join(comments_text)
+            # Get content from either 'content' or 'text' field
+            content = post.get('content', post.get('text', ''))
             
             # Create prompt for OpenAI
             prompt = f"""Analyze the following feedback about {self.product_name} and categorize it by feature and feedback type.
             Focus only on specific, meaningful feedback. Ignore generic or empty responses.
             
             Post/Video Title: {post['title']}
-            Content: {post.get('content', '')}
-            Comments: {comments_text}
+            Content: {content}
             
             Features to analyze:
             - design: Overall look, aesthetics, and visual appeal
@@ -291,7 +313,8 @@ class MultiPlatformFeedbackAnalyzer:
                 )
                 
                 feedback = json.loads(response.choices[0].message.content)
-                print(f"Feedback: {feedback}")
+                if self.output_buffer:
+                    self.output_buffer.write(json.dumps(feedback) + "\n")
                 
                 # Update feedback matrix and source tracking
                 for feature, data in feedback.items():
@@ -312,7 +335,8 @@ class MultiPlatformFeedbackAnalyzer:
                             })
                 
             except Exception as e:
-                print(f"Error analyzing {post['source']}: {post['title']}: {e}")
+                if self.output_buffer:
+                    self.output_buffer.write(f"Error analyzing {post['source']}: {post['title']}: {e}\n")
                 continue
 
     def visualize_feedback_matrix(self) -> None:
@@ -390,7 +414,8 @@ class MultiPlatformFeedbackAnalyzer:
         """Export detailed feedback to a CSV file."""
         df = pd.DataFrame(self.feedback_details)
         df.to_csv(filename, index=False)
-        print(f"Feedback details exported to {filename}")
+        if self.output_buffer:
+            self.output_buffer.write(f"Feedback details exported to {filename}\n")
 
 def main():
     parser = argparse.ArgumentParser(description='Analyze product feedback from multiple platforms')
@@ -418,21 +443,24 @@ def main():
         twitter_posts = analyzer.fetch_twitter_posts(args.posts)
         all_posts_data.extend(twitter_posts)
     
-    print(f"Found {len(all_posts_data)} total posts to analyze")
-    
-    # Analyze feedback
-    print("Analyzing feedback...")
-    analyzer.analyze_feedback(all_posts_data)
-    
-    # Visualize results
-    print("Visualizing feedback matrix...")
-    analyzer.visualize_feedback_matrix()
-    
-    # Export details
-    print("Exporting feedback details...")
-    analyzer.export_feedback_details()
-    
-    print("Analysis complete!")
+    if all_posts_data:
+        st.write(f"Found {len(all_posts_data)} total posts to analyze")
+        
+        # Analyze feedback
+        st.write("Analyzing feedback...")
+        analyzer.analyze_feedback(all_posts_data)
+        
+        # Visualize results
+        st.write("Visualizing feedback matrix...")
+        analyzer.visualize_feedback_matrix()
+        
+        # Export details
+        st.write("Exporting feedback details...")
+        analyzer.export_feedback_details()
+        
+        st.success("Analysis complete!")
+    else:
+        st.write("No posts found to analyze.")
 
 if __name__ == "__main__":
     main() 
