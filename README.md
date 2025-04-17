@@ -73,9 +73,9 @@ streamlit run app.py
    - Select which platforms to analyze (Reddit, YouTube, Twitter)
    - Set the number of posts to analyze per platform using the slider
    - Click "Run Analysis" to start
-   - View real-time progress in the output box
-   - See the final results in the matrix box below
+   - See the final results in the figures below
    - Download the detailed CSV report using the download button
+   - View detailed results using the detailed results dropdowns
 
 
 ### Output
