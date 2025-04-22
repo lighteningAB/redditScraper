@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# 💼 Change to the directory where this script is located
+cd "$(dirname "$0")"
+echo "📁 Changed to working directory: $(pwd)"
 # Exit on any error
 set -e
 
