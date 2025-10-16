@@ -1,0 +1,24 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.cache
+env/
+venv/
+.venv/
+
+# Git
+.git
+
+# Data and logs
+*.sqlite3
+*.log
+complaints.csv
+
+# OS files
+.DS_Store
+
+# Environment files (keep secrets out of image)
+.env
+.env.*
