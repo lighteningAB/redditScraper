@@ -5,6 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import List, Dict, Tuple, Any
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from dotenv import load_dotenv
 from openai import OpenAI
 import argparse
@@ -237,33 +240,48 @@ class MultiPlatformFeedbackAnalyzer:
             return []
 
     def analyze_feedback(self, posts_data):
-        """Analyze feedback from posts and comments using OpenAI."""
+        """Synchronous wrapper for the async analyzer to preserve API compatibility."""
+        # Use asyncio.run to call the async implementation
+        return asyncio.run(self.analyze_feedback_async(posts_data))
+
+    async def analyze_feedback_async(self, posts_data: List[Dict[str, Any]], max_concurrency: int = 6):
+        """Analyze feedback from posts and comments using OpenAI concurrently.
+
+        This method runs OpenAI calls in a thread executor because the current
+        OpenAI client is synchronous. It uses a semaphore to bound concurrency
+        and an asyncio.Lock to protect shared state updates.
+        """
         if self.output_buffer:
-            self.output_buffer.write("\nAnalyzing feedback...\n")
-        
+            self.output_buffer.write("\nAnalyzing feedback (async)...\n")
+
         # Reset feedback tracking
-        self.feedback_matrix = {feature: {feedback_type: 0 for feedback_type in self.feedback_types} 
+        self.feedback_matrix = {feature: {feedback_type: 0 for feedback_type in self.feedback_types}
                               for feature in self.feature_categories}
         self.feedback_by_source = {
-            'reddit_post': 0, 'reddit_comment': 0, 
+            'reddit_post': 0, 'reddit_comment': 0,
             'youtube': 0, 'twitter': 0
         }
         self.feedback_details = []
-        
-        for post in posts_data:
-            if self.output_buffer:
-                self.output_buffer.write(f"\nAnalyzing {post['source']}: {post['title']}\n")
-            
-            # Get content from either 'content' or 'text' field
-            content = post.get('content', post.get('text', ''))
-            
-            # Create prompt for OpenAI
-            prompt = f"""Analyze the following feedback about {self.product_name} and categorize it by feature and feedback type.
+
+        semaphore = asyncio.Semaphore(max_concurrency)
+        lock = asyncio.Lock()
+
+        loop = asyncio.get_running_loop()
+        executor = ThreadPoolExecutor(max_workers=max_concurrency)
+
+        async def analyze_one(post: Dict[str, Any]):
+            async with semaphore:
+                if self.output_buffer:
+                    self.output_buffer.write(f"\nAnalyzing {post['source']}: {post['title']}\n")
+
+                content = post.get('content', post.get('text', ''))
+
+                prompt = f"""Analyze the following feedback about {self.product_name} and categorize it by feature and feedback type.
             Focus only on specific, meaningful feedback. Ignore generic or empty responses.
-            
+
             Post/Video Title: {post['title']}
             Content: {content}
-            
+
             Features to analyze:
             - design: Overall look, aesthetics, and visual appeal
             - camera: Photo and video capabilities, image quality
@@ -274,16 +292,16 @@ class MultiPlatformFeedbackAnalyzer:
             - price: Cost and value proposition
             - audio: Speaker quality, headphone jack, and audio features
             - build quality: Durability, materials, and construction quality
-            
+
             Feedback types: {', '.join(self.feedback_types)}
-            
+
             For each feature mentioned, provide:
             1. The type of feedback (one of the feedback types)
             2. A brief summary of the specific feedback
-            
+
             Only include features where there is actual, specific feedback provided.
             If a feature is mentioned but no specific feedback is given, exclude it from the response.
-            
+
             Example response format:
             {{
                 "design": {{
@@ -299,45 +317,65 @@ class MultiPlatformFeedbackAnalyzer:
                     "summary": "Lacks eSIM support in the standard version"
                 }}
             }}
-            
+
             Return ONLY valid JSON. Do not include any other text."""
-            
-            try:
-                response = self.openai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": "You are a product feedback analyzer. Provide specific, meaningful feedback analysis in JSON format."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    response_format={"type": "json_object"}
-                )
-                
-                feedback = json.loads(response.choices[0].message.content)
-                if self.output_buffer:
-                    self.output_buffer.write(json.dumps(feedback) + "\n")
-                
-                # Update feedback matrix and source tracking
-                for feature, data in feedback.items():
-                    if feature in self.feature_categories and data.get('type') in self.feedback_types:
-                        # Only update if there's actual feedback content
-                        if data.get('summary') and not data['summary'].lower().startswith(('no specific', 'no feedback', 'no mention', 'not provided', 'no comments')):
-                            self.feedback_matrix[feature][data['type']] += 1
-                            self.feedback_by_source[post['source']] += 1
-                            
-                            # Store detailed feedback
-                            self.feedback_details.append({
-                                'title': post['title'],
-                                'feature': feature,
-                                'feedback_type': data['type'],
-                                'summary': data['summary'],
-                                'url': post.get('url', ''),
-                                'source': post['source']
-                            })
-                
-            except Exception as e:
-                if self.output_buffer:
-                    self.output_buffer.write(f"Error analyzing {post['source']}: {post['title']}: {e}\n")
-                continue
+
+                # Run the blocking OpenAI call in a threadpool
+                try:
+                    func = partial(self.openai_client.chat.completions.create,
+                                   model="gpt-3.5-turbo",
+                                   messages=[
+                                       {"role": "system", "content": "You are a product feedback analyzer. Provide specific, meaningful feedback analysis in JSON format."},
+                                       {"role": "user", "content": prompt}
+                                   ],
+                                   response_format={"type": "json_object"})
+
+                    response = await loop.run_in_executor(executor, func)
+
+                    # Extract content safely
+                    raw = getattr(response.choices[0].message, 'content', None)
+                    if raw is None:
+                        raw = response.choices[0].message.content if hasattr(response.choices[0].message, 'content') else ''
+
+                    try:
+                        feedback = json.loads(raw)
+                    except Exception:
+                        # Fallback: try to extract JSON substring
+                        m = re.search(r"\{.*\}", raw, re.S)
+                        feedback = json.loads(m.group(0)) if m else {}
+
+                    if self.output_buffer:
+                        self.output_buffer.write(json.dumps(feedback) + "\n")
+
+                    # Update shared state under lock
+                    async with lock:
+                        for feature, data in feedback.items():
+                            if feature in self.feature_categories and data.get('type') in self.feedback_types:
+                                if data.get('summary') and not data['summary'].lower().startswith(('no specific', 'no feedback', 'no mention', 'not provided', 'no comments')):
+                                    self.feedback_matrix[feature][data['type']] += 1
+                                    self.feedback_by_source[post['source']] += 1
+                                    self.feedback_details.append({
+                                        'title': post['title'],
+                                        'feature': feature,
+                                        'feedback_type': data['type'],
+                                        'summary': data['summary'],
+                                        'url': post.get('url', ''),
+                                        'source': post['source']
+                                    })
+
+                except Exception as e:
+                    if self.output_buffer:
+                        self.output_buffer.write(f"Error analyzing {post['source']}: {post['title']}: {e}\n")
+
+        # Launch tasks
+        tasks = [asyncio.create_task(analyze_one(post)) for post in posts_data]
+        await asyncio.gather(*tasks)
+
+        # Shutdown executor
+        executor.shutdown(wait=True)
+
+        if self.output_buffer:
+            self.output_buffer.write("\nAsync analysis complete.\n")
 
     def visualize_feedback_matrix(self) -> None:
         """Visualize the feedback matrix using matplotlib."""
